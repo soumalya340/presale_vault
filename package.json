@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.5",
     "@solana/spl-token": "^0.4.9",
     "@solana/wallet-adapter-backpack": "^0.1.13",
     "@solana/wallet-adapter-phantom": "^0.9.24",

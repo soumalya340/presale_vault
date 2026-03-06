@@ -19,6 +19,8 @@ import {
   setClaimStatus,
   loadClaimTokens,
   swap,
+  createConfig,
+  createPool,
   adminWithdraw,
   changeCampaignAdmin,
   updateCampaignDuration,
@@ -251,6 +253,20 @@ const ADMIN_FUNCTIONS: FunctionDef[] = [
     submitLabel: 'Load Claim Tokens',
   },
   {
+    id: 'create_config_and_pool',
+    number: '3H2',
+    title: 'Create Config & Pool',
+    description: 'Creates the DBC config then the pool in two sequential transactions. Your wallet will prompt for two signatures — one for each step. The config pubkey from step 1 is automatically passed to step 2.',
+    fields: [
+      { name: 'quote_mint', label: 'Quote Mint', placeholder: 'So11111111111111111111111111111111111111112', hint: 'The deposit/quote token mint (e.g. wSOL). Decimals are fetched automatically.' },
+      { name: 'migration_quote_threshold', label: 'Migration Quote Threshold (SOL)', placeholder: '101', type: 'number', hint: 'SOL amount that triggers pool migration (e.g. 101)' },
+      { name: 'pool_name', label: 'Pool Name', placeholder: 'My Token' },
+      { name: 'pool_symbol', label: 'Pool Symbol', placeholder: 'MTK' },
+      { name: 'pool_uri', label: 'Pool URI', placeholder: 'https://example.com/metadata.json' },
+    ],
+    submitLabel: 'Create Config & Pool (2 signatures)',
+  },
+  {
     id: 'swap',
     number: '3I',
     title: 'Swap',
@@ -322,7 +338,7 @@ const REQUIRES_WALLET = new Set([
   'deposit', 'withdraw', 'user_claim',
   'initialize_global_state', 'initialize_campaign', 'update_fees',
   'set_treasury_admin', 'set_active_status', 'set_withdraw_enabled',
-  'set_claim_status', 'load_claim_tokens', 'swap', 'admin_withdraw',
+  'set_claim_status', 'load_claim_tokens', 'swap', 'create_config_and_pool', 'admin_withdraw',
   'change_campaign_admin', 'update_campaign_duration',
 ]);
 
@@ -435,21 +451,21 @@ function AccordionItem({
       } else if (fn.id === 'set_active_status') {
         const r = await setActiveStatus(connection, anchorWallet!, {
           campaignId: Number(values.campaign_id),
-          status: values.status === 'true',
+          status: (values.status ?? 'true') === 'true',
           network: net,
         });
         data = { tx: r.tx, solscan: r.link };
       } else if (fn.id === 'set_withdraw_enabled') {
         const r = await setWithdrawEnabled(connection, anchorWallet!, {
           campaignId: Number(values.campaign_id),
-          enabled: values.enabled === 'true',
+          enabled: (values.enabled ?? 'true') === 'true',
           network: net,
         });
         data = { tx: r.tx, solscan: r.link };
       } else if (fn.id === 'set_claim_status') {
         const r = await setClaimStatus(connection, anchorWallet!, {
           campaignId: Number(values.campaign_id),
-          status: values.status === 'true',
+          status: (values.status ?? 'true') === 'true',
           network: net,
         });
         data = { tx: r.tx, solscan: r.link };
@@ -471,6 +487,28 @@ function AccordionItem({
           network: net,
         });
         data = { tx: r.tx, solscan: r.link };
+      } else if (fn.id === 'create_config_and_pool') {
+        // Step 1 — createConfig (first wallet signature)
+        const r1 = await createConfig(connection, anchorWallet!, {
+          quoteMint: values.quote_mint,
+          migrationQuoteThreshold: Number(values.migration_quote_threshold) || 101,
+          network: net,
+        });
+        // Step 2 — createPool using config from step 1 (second wallet signature)
+        const r2 = await createPool(connection, anchorWallet!, {
+          configPubkey: r1.configPubkey,
+          poolName: values.pool_name || 'Pool',
+          poolSymbol: values.pool_symbol || 'POOL',
+          poolUri: values.pool_uri || '',
+          network: net,
+        });
+        data = {
+          configTx: r1.tx,
+          poolTx: r2.tx,
+          configAddress: r1.configPubkey,
+          poolAddress: r2.poolAddress,
+          baseMintAddress: r2.baseMintPubkey,
+        };
       } else if (fn.id === 'admin_withdraw') {
         const r = await adminWithdraw(connection, anchorWallet!, {
           campaignId: Number(values.campaign_id),
