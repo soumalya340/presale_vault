@@ -1129,11 +1129,12 @@ export async function swap(
       tokenBaseProgram,
       tokenQuoteProgram,
       tokenProgram,
+      referralTokenAccount: null,
       eventAuthority,
       dbcProgram: DBC_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    })
+    } as any)
     .rpc();
 
   console.log("[vault] swap() tx:", tx);
