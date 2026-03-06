@@ -127,6 +127,27 @@ function solscanLink(tx: string, network: 'devnet' | 'mainnet'): string {
     : `https://solscan.io/tx/${tx}`;
 }
 
+// ─── Fetch campaign account with fallback for older schema ───────────────────
+
+async function fetchCampaignAccount(
+  program: Program,
+  connection: Connection,
+  campaignPda: PublicKey
+) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return await (program.account as any).campaign.fetch(campaignPda);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('buffer length') || msg.includes('beyond buffer')) {
+      const info = await connection.getAccountInfo(campaignPda);
+      if (!info) throw new Error(`Campaign account not found at ${campaignPda.toBase58()}`);
+      return parseCampaignRaw(Buffer.from(info.data));
+    }
+    throw err;
+  }
+}
+
 // ─── View: Global State ───────────────────────────────────────────────────────
 
 export async function viewGlobalState(connection: Connection) {
@@ -135,14 +156,67 @@ export async function viewGlobalState(connection: Connection) {
 
   const info = await connection.getAccountInfo(globalStatePda);
   if (!info) throw new Error('Global state account not initialized yet.');
+  if (!info.owner.equals(PROGRAM_ID)) {
+    throw new Error('Account is not owned by the staking vault program.');
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = await (program.account as any).globalState.fetch(globalStatePda);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await (program.account as any).globalState.fetch(globalStatePda);
+    return {
+      globalStatePda: globalStatePda.toBase58(),
+      treasuryAdmin: data.treasuryAdmin.toBase58(),
+      depositFees: data.depositFees.toString(),
+      withdrawFees: data.withdrawFees.toString(),
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('buffer length') || msg.includes('beyond buffer')) {
+      throw new Error(
+        'Account data does not match expected schema (possible IDL/program version mismatch). ' +
+          'Ensure the IDL matches the deployed program.'
+      );
+    }
+    throw err;
+  }
+}
+
+// ─── Manual campaign deserializer (handles accounts created before snapshot fields) ──
+
+function parseCampaignRaw(data: Buffer) {
+  let offset = 8; // skip 8-byte Anchor discriminator
+
+  const admin = new PublicKey(data.slice(offset, offset + 32)); offset += 32;
+  const campaignId = new BN(data.slice(offset, offset + 8), 'le'); offset += 8;
+
+  const nameLen = data.readUInt32LE(offset); offset += 4;
+  const campaignName = data.slice(offset, offset + nameLen).toString('utf8'); offset += nameLen;
+
+  const depositMint = new PublicKey(data.slice(offset, offset + 32)); offset += 32;
+  const vaultDepositAta = new PublicKey(data.slice(offset, offset + 32)); offset += 32;
+  const endTime = new BN(data.slice(offset, offset + 8), 'le'); offset += 8;
+  const totalDeposits = new BN(data.slice(offset, offset + 8), 'le'); offset += 8;
+  const bump = data[offset]; offset += 1;
+  const totalUsers = new BN(data.slice(offset, offset + 8), 'le'); offset += 8;
+  const activeStatus = data[offset] !== 0; offset += 1;
+  const withdrawEnabled = data[offset] !== 0; offset += 1;
+  const claimMint = new PublicKey(data.slice(offset, offset + 32)); offset += 32;
+  const vaultClaimAta = new PublicKey(data.slice(offset, offset + 32)); offset += 32;
+  const claimStatus = data[offset] !== 0; offset += 1;
+
+  // These fields were added in a later program version — default to 0 if absent.
+  const snapshotTotalDeposits = offset + 8 <= data.length
+    ? new BN(data.slice(offset, offset + 8), 'le')
+    : new BN(0);
+  offset += 8;
+  const snapshotTotalClaim = offset + 8 <= data.length
+    ? new BN(data.slice(offset, offset + 8), 'le')
+    : new BN(0);
+
   return {
-    globalStatePda: globalStatePda.toBase58(),
-    treasuryAdmin: data.treasuryAdmin.toBase58(),
-    depositFees: data.depositFees.toString(),
-    withdrawFees: data.withdrawFees.toString(),
+    admin, campaignId, campaignName, depositMint, vaultDepositAta,
+    endTime, totalDeposits, bump, totalUsers, activeStatus, withdrawEnabled,
+    claimMint, vaultClaimAta, claimStatus, snapshotTotalDeposits, snapshotTotalClaim,
   };
 }
 
@@ -152,8 +226,13 @@ export async function viewCampaign(connection: Connection, campaignId: number) {
   const program = getReadOnlyProgram(connection);
   const campaignPda = getCampaignPda(campaignId);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const account = await (program.account as any).campaign.fetch(campaignPda);
+  const info = await connection.getAccountInfo(campaignPda);
+  if (!info) throw new Error(`Campaign ${campaignId} not found. The account does not exist.`);
+  if (!info.owner.equals(PROGRAM_ID)) {
+    throw new Error('Account is not owned by the staking vault program.');
+  }
+
+  const account = await fetchCampaignAccount(program, connection, campaignPda);
   const defaultPubkey = '11111111111111111111111111111111';
 
   const endTimeBn = BN.isBN(account.endTime) ? account.endTime : new BN(account.endTime);
@@ -218,9 +297,23 @@ export async function viewUserState(
 
   const info = await connection.getAccountInfo(userDepositPda);
   if (!info) throw new Error('No deposit record found for this user in this campaign.');
+  if (!info.owner.equals(PROGRAM_ID)) {
+    throw new Error('Account is not owned by the staking vault program.');
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = await (program.account as any).userDeposit.fetch(userDepositPda);
+  let data;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data = await (program.account as any).userDeposit.fetch(userDepositPda);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('buffer length') || msg.includes('beyond buffer')) {
+      throw new Error(
+        'User deposit data does not match expected schema (possible IDL/program version mismatch).'
+      );
+    }
+    throw err;
+  }
   return {
     campaignPda: campaignPda.toBase58(),
     userDepositPda: userDepositPda.toBase58(),
@@ -245,8 +338,7 @@ export async function deposit(
   const campaignPda = getCampaignPda(campaignId);
   const globalStatePda = getGlobalStatePda();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const campaignAccount = await (program.account as any).campaign.fetch(campaignPda);
+  const campaignAccount = await fetchCampaignAccount(program, connection, campaignPda);
   const vaultDepositAta: PublicKey = campaignAccount.vaultDepositAta;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -336,8 +428,7 @@ export async function withdraw(
   const campaignPda = getCampaignPda(campaignId);
   const globalStatePda = getGlobalStatePda();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const campaignAccount = await (program.account as any).campaign.fetch(campaignPda);
+  const campaignAccount = await fetchCampaignAccount(program, connection, campaignPda);
   const vaultDepositAta: PublicKey = campaignAccount.vaultDepositAta;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -430,8 +521,7 @@ export async function userClaim(
   const claimTokenProgram = params.useToken2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
 
   const campaignPda = getCampaignPda(campaignId);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const campaignAccount = await (program.account as any).campaign.fetch(campaignPda);
+  const campaignAccount = await fetchCampaignAccount(program, connection, campaignPda);
   const claimMint: PublicKey = campaignAccount.claimMint;
   const vaultClaimAta: PublicKey = campaignAccount.vaultClaimAta;
 
@@ -691,8 +781,7 @@ export async function swap(
   const outputMint = new PublicKey(params.outputMint);
 
   const campaignPda = getCampaignPda(campaignId);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const campaignAccount = await (program.account as any).campaign.fetch(campaignPda);
+  const campaignAccount = await fetchCampaignAccount(program, connection, campaignPda);
   const quoteMint: PublicKey = campaignAccount.depositMint;
   const vaultDepositAta: PublicKey = campaignAccount.vaultDepositAta;
 
@@ -749,8 +838,7 @@ export async function adminWithdraw(
   const campaignPda = getCampaignPda(campaignId);
   const globalStatePda = getGlobalStatePda();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const campaignAccount = await (program.account as any).campaign.fetch(campaignPda);
+  const campaignAccount = await fetchCampaignAccount(program, connection, campaignPda);
   const depositMint: PublicKey = campaignAccount.depositMint;
   const vaultDepositAta: PublicKey = campaignAccount.vaultDepositAta;
   const isNativeSol = depositMint.toBase58() === NATIVE_MINT_ADDRESS;

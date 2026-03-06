@@ -344,7 +344,7 @@ function AccordionItem({
 }) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
+  const [result, setResult] = useState<{ type: 'info' | 'success' | 'error'; text: string; solscan?: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const { connection } = useConnection();
@@ -494,10 +494,26 @@ function AccordionItem({
         data = { tx: r.tx, solscan: r.link };
       }
 
-      setResult({ type: 'success', text: formatResult(data) });
+      const solscanUrl =
+        data && typeof data === 'object' && 'solscan' in data
+          ? (data as { solscan: string }).solscan
+          : undefined;
+      const displayData = solscanUrl
+        ? { ...((data as object)), solscan: undefined }
+        : data;
+      setResult({ type: 'success', text: formatResult(displayData), solscan: solscanUrl });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setResult({ type: 'error', text: msg });
+      const isRejection =
+        msg.toLowerCase().includes('user rejected') ||
+        msg.toLowerCase().includes('rejected the request') ||
+        msg.toLowerCase().includes('transaction cancelled') ||
+        msg.toLowerCase().includes('transaction canceled') ||
+        (err as { code?: number })?.code === 4001;
+      setResult({
+        type: isRejection ? 'info' : 'error',
+        text: isRejection ? 'Transaction cancelled — you rejected the wallet signing request.' : msg,
+      });
     } finally {
       setLoading(false);
     }
@@ -633,6 +649,19 @@ function AccordionItem({
               }}
             >
               {result.text}
+              {result.solscan && (
+                <div className="mt-2 pt-2" style={{ borderTop: '1px solid #14532d' }}>
+                  <a
+                    href={result.solscan}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                    style={{ color: '#4ade80' }}
+                  >
+                    View on Solscan ↗
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </form>
