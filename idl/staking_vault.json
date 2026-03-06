@@ -1,0 +1,1272 @@
+{
+  "address": "3h7iDYexmVe7MbpnNkRuW9ahY3Bdmy3oDCq2jCbxjQ6u",
+  "metadata": {
+    "name": "staking_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "admin_withdraw",
+      "discriminator": [160, 166, 147, 222, 46, 220, 75, 224],
+      "accounts": [
+        {
+          "name": "treasury_admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_mint"
+        },
+        {
+          "name": "treasury_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "deposit_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "change_campaign_admin",
+      "docs": [
+        "Emergency: change the admin of a campaign.",
+        "Only the program deployer can call this. Use when the campaign admin wallet is compromised."
+      ],
+      "discriminator": [100, 18, 71, 137, 158, 201, 145, 169],
+      "accounts": [
+        {
+          "name": "deployer",
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_deposit",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117, 115, 101, 114, 95, 100, 101, 112, 111, 115, 105, 116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_mint"
+        },
+        {
+          "name": "user_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "treasury_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "treasury_admin"
+        },
+        {
+          "name": "deposit_token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_campaign",
+      "discriminator": [169, 88, 7, 6, 9, 165, 65, 132],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_mint"
+        },
+        {
+          "name": "vault_deposit_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "deposit_token_program"
+              },
+              {
+                "kind": "account",
+                "path": "deposit_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "deposit_token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "campaign_id",
+          "type": "u64"
+        },
+        {
+          "name": "campaign_name",
+          "type": "string"
+        },
+        {
+          "name": "duration_in_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_global_state",
+      "discriminator": [232, 254, 209, 244, 123, 89, 154, 207],
+      "accounts": [
+        {
+          "name": "deployer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "treasury_admin"
+        },
+        {
+          "name": "global_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "deposit_fees",
+          "type": "u64"
+        },
+        {
+          "name": "withdraw_fees",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "load_claim_tokens",
+      "docs": [
+        "Admin loads additional claim tokens into the vault.",
+        "Can be called before or after swap to top up the claim pool."
+      ],
+      "discriminator": [196, 5, 254, 89, 177, 6, 1, 73],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim_mint"
+        },
+        {
+          "name": "admin_claim_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_claim_ata",
+          "docs": [
+            "The vault ATA for claim tokens, owned by the campaign PDA.",
+            "Created via `init_if_needed` so this instruction can be the first",
+            "to set up the claim token path (before or after swap)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "claim_token_program"
+              },
+              {
+                "kind": "account",
+                "path": "claim_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "claim_token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_active_status",
+      "discriminator": [123, 145, 253, 77, 113, 221, 22, 61],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_claim_status",
+      "discriminator": [87, 132, 213, 18, 247, 152, 211, 206],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_treasury_admin",
+      "discriminator": [142, 5, 231, 120, 135, 246, 249, 19],
+      "accounts": [
+        {
+          "name": "deployer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_treasury_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_withdraw_enabled",
+      "discriminator": [186, 140, 169, 123, 235, 75, 18, 75],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "swap",
+      "docs": [
+        "Executes a token swap via CPI into the DBC program.",
+        "Swaps the full campaign vault balance to the campaign's output ATA.",
+        "Snapshots total_deposits and sets claim_mint on success.",
+        "",
+        "# Arguments",
+        "* `minimum_amount_out` - Minimum output tokens (slippage protection)"
+      ],
+      "discriminator": [248, 198, 158, 145, 225, 117, 135, 200],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_authority"
+        },
+        {
+          "name": "config"
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "input_token_account",
+          "writable": true
+        },
+        {
+          "name": "output_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "output_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "output_mint"
+        },
+        {
+          "name": "base_vault",
+          "writable": true
+        },
+        {
+          "name": "quote_vault",
+          "writable": true
+        },
+        {
+          "name": "base_mint"
+        },
+        {
+          "name": "quote_mint"
+        },
+        {
+          "name": "token_base_program"
+        },
+        {
+          "name": "token_quote_program"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "referral_token_account",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "event_authority"
+        },
+        {
+          "name": "dbc_program",
+          "docs": ["The dynamic bonding curve program to CPI into"],
+          "address": "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "minimum_amount_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_campaign_duration",
+      "discriminator": [192, 118, 85, 235, 26, 243, 120, 213],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_duration_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "update_fees",
+      "discriminator": [225, 27, 13, 6, 69, 84, 172, 191],
+      "accounts": [
+        {
+          "name": "deployer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "deposit_fees",
+          "type": "u64"
+        },
+        {
+          "name": "withdraw_fees",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "user_claim",
+      "docs": [
+        "User claims their proportional share of claim tokens.",
+        "claim_amount = (user_deposited * snapshot_total_claim) / snapshot_total_deposits"
+      ],
+      "discriminator": [178, 17, 203, 100, 110, 186, 223, 38],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_deposit",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117, 115, 101, 114, 95, 100, 101, 112, 111, 115, 105, 116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "claim_mint"
+        },
+        {
+          "name": "user_claim_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_claim_ata",
+          "writable": true
+        },
+        {
+          "name": "claim_token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115, 116, 97, 107, 105, 110, 103, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 97, 109, 112, 97, 105, 103, 110]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  9, 55, 78, 22, 144, 197, 177, 196, 248, 155, 157, 234, 183,
+                  199, 59, 111, 5, 87, 229, 55, 184, 114, 105, 160, 18, 110, 84,
+                  180, 93, 73, 213, 164
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_deposit",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117, 115, 101, 114, 95, 100, 101, 112, 111, 115, 105, 116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_mint"
+        },
+        {
+          "name": "user_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "vault_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "treasury_deposit_ata",
+          "writable": true
+        },
+        {
+          "name": "treasury_admin"
+        },
+        {
+          "name": "deposit_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Campaign",
+      "discriminator": [50, 40, 49, 11, 157, 220, 229, 192]
+    },
+    {
+      "name": "GlobalState",
+      "discriminator": [163, 46, 74, 168, 216, 123, 133, 98]
+    },
+    {
+      "name": "UserDeposit",
+      "discriminator": [69, 238, 23, 217, 255, 137, 185, 35]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Only authorized admin can call this"
+    },
+    {
+      "code": 6001,
+      "name": "AmountMustBeGreaterThanZero",
+      "msg": "Amount must be greater than 0"
+    },
+    {
+      "code": 6002,
+      "name": "CrowdfundingEnded",
+      "msg": "Crowdfunding period has ended"
+    },
+    {
+      "code": 6003,
+      "name": "CrowdfundingNotEnded",
+      "msg": "Crowdfunding period has not ended yet"
+    },
+    {
+      "code": 6004,
+      "name": "InsufficientDeposit",
+      "msg": "Insufficient deposit balance"
+    },
+    {
+      "code": 6005,
+      "name": "claimsNotEnabled",
+      "msg": "claims are not enabled"
+    },
+    {
+      "code": 6006,
+      "name": "NoDepositsToclaim",
+      "msg": "No deposits to claim or ID out of range"
+    },
+    {
+      "code": 6007,
+      "name": "TooManyUserDeposits",
+      "msg": "Too many user deposits"
+    },
+    {
+      "code": 6008,
+      "name": "CampaignInactive",
+      "msg": "Campaign is not active"
+    },
+    {
+      "code": 6009,
+      "name": "WithdrawsDisabled",
+      "msg": "Withdrawals are disabled for this campaign"
+    },
+    {
+      "code": 6010,
+      "name": "ClaimAlreadyTransferred",
+      "msg": "Claim already transferred to user"
+    },
+    {
+      "code": 6011,
+      "name": "SnapshotsAlreadySet",
+      "msg": "Snapshots already set, cannot overwrite"
+    },
+    {
+      "code": 6012,
+      "name": "claimMintNotSet",
+      "msg": "claim mint not yet set — swap or load_claim_tokens first"
+    }
+  ],
+  "types": [
+    {
+      "name": "Campaign",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign_id",
+            "type": "u64"
+          },
+          {
+            "name": "campaign_name",
+            "type": "string"
+          },
+          {
+            "name": "deposit_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_deposit_ata",
+            "type": "pubkey"
+          },
+          {
+            "name": "end_time",
+            "type": "i64"
+          },
+          {
+            "name": "total_deposits",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "total_users",
+            "type": "u64"
+          },
+          {
+            "name": "active_status",
+            "type": "bool"
+          },
+          {
+            "name": "withdraw_enabled",
+            "type": "bool"
+          },
+          {
+            "name": "claim_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_claim_ata",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_status",
+            "type": "bool"
+          },
+          {
+            "name": "snapshot_total_deposits",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_total_claim",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "treasury_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "deposit_fees",
+            "type": "u64"
+          },
+          {
+            "name": "withdraw_fees",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserDeposit",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user_id_per_campaign",
+            "type": "u64"
+          },
+          {
+            "name": "claim_status",
+            "type": "bool"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
