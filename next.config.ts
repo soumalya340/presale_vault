@@ -1,13 +1,9 @@
 import type { NextConfig } from "next";
-import webpack from "webpack";
 
 const nextConfig: NextConfig = {
-  // Turbopack (Next.js 16 default) — declare so Next.js doesn't error when
-  // it sees a webpack config alongside Turbopack mode.
   turbopack: {},
 
-  // Webpack config is used when building with --webpack or in older Next.js.
-  webpack: (config) => {
+  webpack: (config, { webpack }) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

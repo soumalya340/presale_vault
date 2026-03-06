@@ -1129,7 +1129,6 @@ export async function swap(
       tokenBaseProgram,
       tokenQuoteProgram,
       tokenProgram,
-      referralTokenAccount: null,
       eventAuthority,
       dbcProgram: DBC_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
