@@ -9,6 +9,7 @@ import {
   viewUserState,
   deposit,
   withdraw,
+  withdrawAll,
   userClaim,
   initializeGlobalState,
   initializeCampaign,
@@ -117,6 +118,26 @@ const USER_FUNCTIONS: FunctionDef[] = [
       },
     ],
     submitLabel: 'Withdraw',
+  },
+  {
+    id: 'withdraw_all',
+    number: '2B2',
+    title: 'Withdraw All',
+    description: 'Withdraw your entire deposited balance from a campaign in one go. Fetches your current on-chain balance automatically.',
+    fields: [
+      { name: 'deposit_mint', label: 'Deposit Mint', placeholder: 'So11111111111111111111111111111111111111112' },
+      { name: 'campaign_id', label: 'Campaign ID', placeholder: '1', type: 'number' },
+      {
+        name: 'unwrap',
+        label: 'Unwrap wSOL to SOL',
+        type: 'select',
+        options: [
+          { label: 'No', value: 'false' },
+          { label: 'Yes (--unwrap)', value: 'true' },
+        ],
+      },
+    ],
+    submitLabel: 'Withdraw All',
   },
   {
     id: 'user_claim',
@@ -335,7 +356,7 @@ const SECTION_STYLE: Record<SectionId, { badge: string; accent: string; glow: st
 
 // Determines which functions require a connected wallet
 const REQUIRES_WALLET = new Set([
-  'deposit', 'withdraw', 'user_claim',
+  'deposit', 'withdraw', 'withdraw_all', 'user_claim',
   'initialize_global_state', 'initialize_campaign', 'update_fees',
   'set_treasury_admin', 'set_active_status', 'set_withdraw_enabled',
   'set_claim_status', 'load_claim_tokens', 'swap', 'create_config_and_pool', 'admin_withdraw',
@@ -409,6 +430,14 @@ function AccordionItem({
           depositMint: values.deposit_mint,
           campaignId: Number(values.campaign_id),
           amount: values.amount,
+          unwrap: values.unwrap === 'true',
+          network: net,
+        });
+        data = { tx: r.tx, solscan: r.link, unwrapTx: r.unwrapTx };
+      } else if (fn.id === 'withdraw_all') {
+        const r = await withdrawAll(connection, anchorWallet!, {
+          depositMint: values.deposit_mint,
+          campaignId: Number(values.campaign_id),
           unwrap: values.unwrap === 'true',
           network: net,
         });

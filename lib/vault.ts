@@ -420,12 +420,30 @@ export async function viewUserState(
     }
     throw err;
   }
+  // Fetch deposit mint from campaign to resolve decimals
+  const campaignAccount = await fetchCampaignAccount(
+    program,
+    connection,
+    campaignPda,
+  );
+  const depositMint: PublicKey = campaignAccount.depositMint;
+  const mintInfo = await getMint(connection, depositMint, "confirmed");
+  const decimals = mintInfo.decimals;
+
+  const rawAmount = data.amount.toString();
+  const amountUi =
+    decimals > 0
+      ? (Number(rawAmount) / Math.pow(10, decimals)).toFixed(decimals)
+      : rawAmount;
+
   return {
     campaignPda: campaignPda.toBase58(),
     userDepositPda: userDepositPda.toBase58(),
     userIdPerCampaign: data.userIdPerCampaign.toString(),
     user: data.user.toBase58(),
-    amount: data.amount.toString(),
+    depositMint: depositMint.toBase58(),
+    rawAmount,
+    amountUi,
   };
 }
 
@@ -772,6 +790,54 @@ export async function userClaim(
 
   console.log("[vault] userClaim() tx:", tx);
   return { tx, link: solscanLink(tx, params.network) };
+}
+
+// ─── User: Withdraw All ───────────────────────────────────────────────────────
+
+export async function withdrawAll(
+  connection: Connection,
+  wallet: AnchorWallet,
+  params: {
+    depositMint: string;
+    campaignId: number;
+    unwrap: boolean;
+    network: "devnet" | "mainnet";
+  },
+): Promise<{ tx: string; link: string; unwrapTx?: string }> {
+  console.log("[vault] withdrawAll()", {
+    ...params,
+    caller: wallet.publicKey.toBase58(),
+  });
+  const program = getReadOnlyProgram(connection);
+  const campaignPda = getCampaignPda(params.campaignId);
+  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey);
+
+  const info = await connection.getAccountInfo(userDepositPda);
+  if (!info)
+    throw new Error("No deposit record found for this user in this campaign.");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userDeposit = await (program.account as any).userDeposit.fetch(
+    userDepositPda,
+  );
+  const amount: BN = userDeposit.amount;
+  if (amount.isZero()) throw new Error("Your deposited balance is already 0.");
+
+  const depositMint = new PublicKey(params.depositMint);
+  const isNativeSol = depositMint.toBase58() === NATIVE_MINT_ADDRESS;
+
+  // Convert lamports → SOL string for native SOL, otherwise use raw BN string
+  const amountParam = isNativeSol
+    ? (amount.toNumber() / LAMPORTS_PER_SOL).toString()
+    : amount.toString();
+
+  return withdraw(connection, wallet, {
+    depositMint: params.depositMint,
+    campaignId: params.campaignId,
+    amount: amountParam,
+    unwrap: params.unwrap,
+    network: params.network,
+  });
 }
 
 // ─── Admin: Initialize Global State ──────────────────────────────────────────
