@@ -22,6 +22,7 @@ import {
   swap,
   createConfig,
   createPool,
+  createConfigPoolAndSwap,
   adminWithdraw,
   changeCampaignAdmin,
   updateCampaignDuration,
@@ -274,6 +275,21 @@ const ADMIN_FUNCTIONS: FunctionDef[] = [
     submitLabel: 'Load Claim Tokens',
   },
   {
+    id: 'create_config_pool_and_swap',
+    number: '3H3',
+    title: 'Create Config, Pool & Swap',
+    description: 'Atomic transaction: creates the DBC config + pool then immediately swaps the vault deposit tokens into the new base token. All three operations execute in a single transaction.',
+    fields: [
+      { name: 'campaign_id', label: 'Campaign ID', placeholder: '1', type: 'number' },
+      { name: 'migration_quote_threshold', label: 'Migration Quote Threshold (SOL)', placeholder: '101', type: 'number', hint: 'SOL amount that triggers pool migration (e.g. 101)' },
+      { name: 'minimum_amount_out', label: 'Minimum Amount Out (raw)', placeholder: '0', type: 'number', hint: 'Minimum base tokens to receive from the swap (0 = no slippage protection)' },
+      { name: 'pool_name', label: 'Pool Name', placeholder: 'My Token' },
+      { name: 'pool_symbol', label: 'Pool Symbol', placeholder: 'MTK' },
+      { name: 'pool_uri', label: 'Pool URI', placeholder: 'https://example.com/metadata.json' },
+    ],
+    submitLabel: 'Create Config, Pool & Swap (atomic)',
+  },
+  {
     id: 'create_config_and_pool',
     number: '3H2',
     title: 'Create Config & Pool',
@@ -359,7 +375,7 @@ const REQUIRES_WALLET = new Set([
   'deposit', 'withdraw', 'withdraw_all', 'user_claim',
   'initialize_global_state', 'initialize_campaign', 'update_fees',
   'set_treasury_admin', 'set_active_status', 'set_withdraw_enabled',
-  'set_claim_status', 'load_claim_tokens', 'swap', 'create_config_and_pool', 'admin_withdraw',
+  'set_claim_status', 'load_claim_tokens', 'swap', 'create_config_pool_and_swap', 'create_config_and_pool', 'admin_withdraw',
   'change_campaign_admin', 'update_campaign_duration',
 ]);
 
@@ -516,6 +532,23 @@ function AccordionItem({
           network: net,
         });
         data = { tx: r.tx, solscan: r.link };
+      } else if (fn.id === 'create_config_pool_and_swap') {
+        const r = await createConfigPoolAndSwap(connection, anchorWallet!, {
+          campaignId: Number(values.campaign_id),
+          migrationQuoteThreshold: Number(values.migration_quote_threshold) || 101,
+          minimumAmountOut: values.minimum_amount_out || '0',
+          poolName: values.pool_name || 'Pool',
+          poolSymbol: values.pool_symbol || 'POOL',
+          poolUri: values.pool_uri || '',
+          network: net,
+        });
+        data = {
+          tx: r.tx,
+          solscan: r.link,
+          configAddress: r.configPubkey,
+          baseMintAddress: r.baseMintPubkey,
+          poolQuoteProgress: r.poolQuoteProgress,
+        };
       } else if (fn.id === 'create_config_and_pool') {
         // Step 1 — createConfig (first wallet signature)
         const r1 = await createConfig(connection, anchorWallet!, {

@@ -1560,3 +1560,235 @@ export async function createPool(
     poolAddress,
   };
 }
+
+// ─── Admin: Create Config + Pool + Swap (atomic) ──────────────────────────────
+// Combines createConfig + createPool + swap into a single atomic transaction.
+
+export async function createConfigPoolAndSwap(
+  connection: Connection,
+  wallet: AnchorWallet,
+  params: {
+    campaignId: number;
+    migrationQuoteThreshold: number;
+    minimumAmountOut: string;
+    poolName: string;
+    poolSymbol: string;
+    poolUri: string;
+    network: "devnet" | "mainnet";
+  },
+): Promise<{ tx: string; link: string; configPubkey: string; baseMintPubkey: string; poolQuoteProgress: number | null }> {
+  console.log("[vault] createConfigPoolAndSwap()", {
+    ...params,
+    caller: wallet.publicKey.toBase58(),
+  });
+
+  console.log("[vault] createConfigPoolAndSwap() step 1: get program and campaign PDA");
+  const program = getProgram(connection, wallet);
+  const campaignId = new BN(params.campaignId);
+  const campaignPda = getCampaignPda(campaignId);
+  console.log("[vault] createConfigPoolAndSwap() campaignPda:", campaignPda.toBase58());
+
+  console.log("[vault] createConfigPoolAndSwap() step 2: fetch campaign quote mint info");
+  const { quoteMint, quoteDecimals, vaultDepositAta } =
+    await fetchCampaignQuoteMintInfo(connection, program, campaignPda);
+  console.log("[vault] createConfigPoolAndSwap() quoteMint:", quoteMint.toBase58(), "quoteDecimals:", quoteDecimals, "vaultDepositAta:", vaultDepositAta.toBase58());
+
+  console.log("[vault] createConfigPoolAndSwap() step 3: generate config and baseMint keypairs");
+  const config = Keypair.generate();
+  const baseMint = Keypair.generate();
+  console.log("[vault] createConfigPoolAndSwap() config:", config.publicKey.toBase58());
+  console.log("[vault] createConfigPoolAndSwap() baseMint:", baseMint.publicKey.toBase58());
+
+  console.log("[vault] createConfigPoolAndSwap() step 4: build migrated pool params");
+  const preMigrationEndingFeeBps = 500;
+  const postMigrationEndingFeeBps = 1;
+  const dammV2BaseFeeMode = DammV2BaseFeeMode.FeeTimeSchedulerLinear;
+
+  const migratedPoolMarketCapFeeSchedulerParams =
+    getMigratedPoolMarketCapFeeSchedulerParams(
+      preMigrationEndingFeeBps,
+      postMigrationEndingFeeBps,
+      dammV2BaseFeeMode,
+      10,
+      500,
+      86400 * 30,
+    );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const curveConfig = buildCurve({
+    token: {
+      tokenType: 1,
+      tokenBaseDecimal: 9,
+      tokenQuoteDecimal: quoteDecimals,
+      tokenUpdateAuthority: 1,
+      totalTokenSupply: 1_000_000_000,
+      leftover: 0,
+    },
+    fee: {
+      baseFeeParams: {
+        baseFeeMode: BaseFeeMode.FeeSchedulerExponential,
+        feeSchedulerParam: {
+          startingFeeBps: 100,
+          endingFeeBps: 100,
+          numberOfPeriod: 0,
+          totalDuration: 0,
+        },
+      },
+      dynamicFeeEnabled: false,
+      collectFeeMode: 0,
+      creatorTradingFeePercentage: 50,
+      poolCreationFee: 0,
+      enableFirstSwapWithMinFee: true,
+    },
+    migration: {
+      migrationOption: 1,
+      migrationFeeOption: 6,
+      migrationFee: { feePercentage: 0, creatorFeePercentage: 0 },
+      migratedPoolFee: {
+        collectFeeMode: 0,
+        dynamicFee: 0,
+        poolFeeBps: 400,
+        baseFeeMode: dammV2BaseFeeMode,
+        marketCapFeeSchedulerParams: {
+          numberOfPeriod: migratedPoolMarketCapFeeSchedulerParams.numberOfPeriod,
+          sqrtPriceStepBps: migratedPoolMarketCapFeeSchedulerParams.sqrtPriceStepBps,
+          schedulerExpirationDuration:
+            migratedPoolMarketCapFeeSchedulerParams.schedulerExpirationDuration,
+          endingBaseFeeBps: postMigrationEndingFeeBps,
+        },
+      },
+    },
+    liquidityDistribution: {
+      partnerPermanentLockedLiquidityPercentage: 40,
+      partnerLiquidityPercentage: 0,
+      creatorPermanentLockedLiquidityPercentage: 60,
+      creatorLiquidityPercentage: 0,
+      partnerLiquidityVestingInfoParams: {
+        vestingPercentage: 0,
+        bpsPerPeriod: 0,
+        numberOfPeriods: 0,
+        cliffDurationFromMigrationTime: 0,
+        totalDuration: 0,
+      },
+      creatorLiquidityVestingInfoParams: {
+        vestingPercentage: 0,
+        bpsPerPeriod: 0,
+        numberOfPeriods: 0,
+        cliffDurationFromMigrationTime: 0,
+        totalDuration: 0,
+      },
+    },
+    lockedVesting: {
+      totalLockedVestingAmount: 0,
+      numberOfVestingPeriod: 0,
+      cliffUnlockAmount: 0,
+      totalVestingDuration: 0,
+      cliffDurationFromMigrationTime: 0,
+    },
+    activationType: 1,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: params.migrationQuoteThreshold,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+  console.log("[vault] createConfigPoolAndSwap() step 5: curveConfig built");
+
+  console.log("[vault] createConfigPoolAndSwap() step 6: create DynamicBondingCurveClient");
+  const client = new DynamicBondingCurveClient(connection, "confirmed");
+
+  console.log("[vault] createConfigPoolAndSwap() step 7: build configAndPoolTx via SDK");
+  const configAndPoolTx = await client.pool.createConfigAndPool({
+    config: config.publicKey,
+    feeClaimer: wallet.publicKey,
+    leftoverReceiver: wallet.publicKey,
+    payer: wallet.publicKey,
+    quoteMint,
+    ...curveConfig,
+    preCreatePoolParam: {
+      name: params.poolName,
+      symbol: params.poolSymbol,
+      uri: params.poolUri,
+      poolCreator: wallet.publicKey,
+      baseMint: baseMint.publicKey,
+    },
+  });
+  console.log("[vault] createConfigPoolAndSwap() step 8: configAndPoolTx built, instructions:", configAndPoolTx.instructions.length);
+
+  console.log("[vault] createConfigPoolAndSwap() step 9: derive pool PDAs");
+  const { poolPda, baseVaultPda, quoteVaultPda, poolAuthority, eventAuthority } =
+    derivePoolPdas(config.publicKey, baseMint.publicKey, quoteMint);
+  console.log("[vault] createConfigPoolAndSwap() poolPda:", poolPda.toBase58(), "baseVaultPda:", baseVaultPda.toBase58(), "quoteVaultPda:", quoteVaultPda.toBase58());
+
+  console.log("[vault] createConfigPoolAndSwap() step 10: get output token account ATA");
+  const outputTokenAccount = getAssociatedTokenAddressSync(
+    baseMint.publicKey,
+    campaignPda,
+    true,
+    TOKEN_2022_PROGRAM_ID,
+  );
+  console.log("[vault] createConfigPoolAndSwap() outputTokenAccount:", outputTokenAccount.toBase58());
+
+  console.log("[vault] createConfigPoolAndSwap() step 11: build swap instruction");
+  const swapIx = await program.methods
+    .swap(new BN(params.campaignId))
+    .accounts({
+      admin: wallet.publicKey,
+      campaign: campaignPda,
+      poolAuthority,
+      config: config.publicKey,
+      pool: poolPda,
+      inputTokenAccount: vaultDepositAta,
+      outputTokenAccount,
+      outputMint: baseMint.publicKey,
+      baseVault: baseVaultPda,
+      quoteVault: quoteVaultPda,
+      baseMint: baseMint.publicKey,
+      quoteMint,
+      tokenBaseProgram: TOKEN_2022_PROGRAM_ID,
+      tokenQuoteProgram: TOKEN_PROGRAM_ID,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      referralTokenAccount: null,
+      eventAuthority,
+      dbcProgram: DBC_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+    } as any)
+    .instruction();
+  console.log("[vault] createConfigPoolAndSwap() step 12: swap instruction built");
+
+  console.log("[vault] createConfigPoolAndSwap() step 13: build atomic transaction");
+  const atomicTx = new Transaction();
+  atomicTx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }));
+  for (const ix of configAndPoolTx.instructions) {
+    atomicTx.add(ix);
+  }
+  atomicTx.add(swapIx);
+  console.log("[vault] createConfigPoolAndSwap() atomicTx instructions:", atomicTx.instructions.length);
+
+  console.log("[vault] createConfigPoolAndSwap() step 14: send and confirm transaction");
+  const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
+  const txSig = await provider.sendAndConfirm(atomicTx, [config, baseMint], {
+    skipPreflight: true,
+  });
+  console.log("[vault] createConfigPoolAndSwap() step 15: tx confirmed:", txSig);
+
+  console.log("[vault] createConfigPoolAndSwap() step 16: fetch pool quote progress");
+  let poolQuoteProgress: number | null = null;
+  try {
+    const poolAccount = await client.state.getPoolByBaseMint(baseMint.publicKey);
+    const actualPoolPda = poolAccount?.publicKey ?? poolPda;
+    console.log("[vault] createConfigPoolAndSwap() poolAccount:", poolAccount?.publicKey?.toBase58(), "actualPoolPda:", actualPoolPda.toBase58());
+    poolQuoteProgress = await client.state.getPoolQuoteTokenCurveProgress(actualPoolPda);
+    console.log("[vault] createConfigPoolAndSwap() poolQuoteProgress:", poolQuoteProgress);
+  } catch (err) {
+    console.warn("[vault] createConfigPoolAndSwap() failed to fetch pool progress:", err);
+  }
+
+  console.log("[vault] createConfigPoolAndSwap() step 17: done, returning");
+  return {
+    tx: txSig,
+    link: solscanLink(txSig, params.network),
+    configPubkey: config.publicKey.toBase58(),
+    baseMintPubkey: baseMint.publicKey.toBase58(),
+    poolQuoteProgress,
+  };
+}
