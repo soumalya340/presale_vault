@@ -352,6 +352,19 @@ function parseCampaignRaw(data: Buffer) {
   };
 }
 
+// ─── Check if campaign exists ──────────────────────────────────────────────────
+
+export async function campaignExists(
+  connection: Connection,
+  campaignId: number,
+  network: Network = "devnet",
+): Promise<boolean> {
+  const cfg = getConfig(network);
+  const campaignPda = getCampaignPda(campaignId, network);
+  const info = await connection.getAccountInfo(campaignPda);
+  return !!(info && info.owner.equals(cfg.programId));
+}
+
 // ─── View: Campaign ───────────────────────────────────────────────────────────
 
 export async function viewCampaign(connection: Connection, campaignId: number, network: Network = "devnet") {

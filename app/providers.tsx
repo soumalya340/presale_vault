@@ -19,7 +19,7 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 // Override via env vars in your deployment platform (Vercel, Netlify, etc.):
 // NEXT_PUBLIC_RPC_DEVNET, NEXT_PUBLIC_RPC_MAINNET
 const DEFAULT_DEVNET = 'https://api.devnet.solana.com';
-const DEFAULT_MAINNET = 'https://api.mainnet.solana.com';
+const DEFAULT_MAINNET = 'https://mainnet.helius-rpc.com/?api-key=54858719-0674-4259-8bab-a4f159d95d22';
 
 export function getRpcEndpoint(network: 'devnet' | 'mainnet'): string {
   const devnet = process.env.NEXT_PUBLIC_RPC_DEVNET ?? DEFAULT_DEVNET;
