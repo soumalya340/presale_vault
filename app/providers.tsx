@@ -16,6 +16,11 @@ import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 const DEVNET_RPC = 'https://api.devnet.solana.com';
+const MAINNET_RPC = 'https://api.mainnet-beta.solana.com';
+
+export function getRpcEndpoint(network: 'devnet' | 'mainnet'): string {
+  return network === 'mainnet' ? MAINNET_RPC : DEVNET_RPC;
+}
 
 export function Providers({ children, endpoint = DEVNET_RPC }: { children: ReactNode; endpoint?: string }) {
   const wallets = useMemo(

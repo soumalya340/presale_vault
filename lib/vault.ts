@@ -35,14 +35,40 @@ import {
   getMint,
 } from "@solana/spl-token";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
-import IDL from "../idl/staking_vault.json";
+import DEVNET_IDL from "../idl/staking_vault.json";
+import MAINNET_IDL from "../idl/mainnet.json";
+
+// ─── Network Config ──────────────────────────────────────────────────────────
+
+type Network = "devnet" | "mainnet";
+
+interface NetworkConfig {
+  idl: typeof DEVNET_IDL;
+  programId: PublicKey;
+  deployerAddress: PublicKey;
+}
+
+const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
+  devnet: {
+    idl: DEVNET_IDL,
+    programId: new PublicKey((DEVNET_IDL as { address: string }).address),
+    deployerAddress: new PublicKey("cyaibXfQvCC4qKDYNguU4mXryhKjSkszPWkd56KFkrF"),
+  },
+  mainnet: {
+    idl: MAINNET_IDL,
+    programId: new PublicKey((MAINNET_IDL as { address: string }).address),
+    deployerAddress: new PublicKey("57QCuZrNChaLZd7Rjs9zWQocrhQosWtuabkygQLzvEP4"),
+  },
+};
+
+function getConfig(network: Network = "devnet"): NetworkConfig {
+  return NETWORK_CONFIGS[network];
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const DEPLOYER_ADDRESS = new PublicKey(
-  "cyaibXfQvCC4qKDYNguU4mXryhKjSkszPWkd56KFkrF",
-);
-const PROGRAM_ID = new PublicKey((IDL as { address: string }).address);
+/** @deprecated Use getConfig(network).deployerAddress instead */
+export const DEPLOYER_ADDRESS = NETWORK_CONFIGS.devnet.deployerAddress;
 const NATIVE_MINT_ADDRESS = "So11111111111111111111111111111111111111112";
 
 export const DBC_PROGRAM_ID = new PublicKey(
@@ -51,22 +77,24 @@ export const DBC_PROGRAM_ID = new PublicKey(
 
 // ─── PDA Utilities ───────────────────────────────────────────────────────────
 
-export function getGlobalStatePda(): PublicKey {
-  console.log("[vault] getGlobalStatePda()");
+export function getGlobalStatePda(network: Network = "devnet"): PublicKey {
+  console.log("[vault] getGlobalStatePda()", { network });
+  const cfg = getConfig(network);
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("staking_vault"), DEPLOYER_ADDRESS.toBuffer()],
-    PROGRAM_ID,
+    [Buffer.from("staking_vault"), cfg.deployerAddress.toBuffer()],
+    cfg.programId,
   );
   return pda;
 }
 
-export function getCampaignPda(campaignId: number | BN): PublicKey {
-  console.log("[vault] getCampaignPda()", { campaignId });
+export function getCampaignPda(campaignId: number | BN, network: Network = "devnet"): PublicKey {
+  console.log("[vault] getCampaignPda()", { campaignId, network });
+  const cfg = getConfig(network);
   const idBn = BN.isBN(campaignId) ? campaignId : new BN(campaignId);
   const campaignIdBuf = idBn.toArrayLike(Buffer, "le", 8);
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("campaign"), DEPLOYER_ADDRESS.toBuffer(), campaignIdBuf],
-    PROGRAM_ID,
+    [Buffer.from("campaign"), cfg.deployerAddress.toBuffer(), campaignIdBuf],
+    cfg.programId,
   );
   return pda;
 }
@@ -74,27 +102,31 @@ export function getCampaignPda(campaignId: number | BN): PublicKey {
 export function getUserDepositPda(
   campaignPda: PublicKey,
   userPubkey: PublicKey,
+  network: Network = "devnet",
 ): PublicKey {
   console.log("[vault] getUserDepositPda()", {
     campaignPda: campaignPda.toBase58(),
     userPubkey: userPubkey.toBase58(),
+    network,
   });
+  const cfg = getConfig(network);
   const [pda] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("user_deposit"),
       campaignPda.toBuffer(),
       userPubkey.toBuffer(),
     ],
-    PROGRAM_ID,
+    cfg.programId,
   );
   return pda;
 }
 
-export function getClaimPda(campaignPda: PublicKey): PublicKey {
-  console.log("[vault] getClaimPda()", { campaignPda: campaignPda.toBase58() });
+export function getClaimPda(campaignPda: PublicKey, network: Network = "devnet"): PublicKey {
+  console.log("[vault] getClaimPda()", { campaignPda: campaignPda.toBase58(), network });
+  const cfg = getConfig(network);
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("claim"), campaignPda.toBuffer()],
-    PROGRAM_ID,
+    cfg.programId,
   );
   return pda;
 }
@@ -149,8 +181,9 @@ export function derivePoolPdas(
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-function getReadOnlyProgram(connection: Connection): Program {
-  console.log("[vault] getReadOnlyProgram()");
+function getReadOnlyProgram(connection: Connection, network: Network = "devnet"): Program {
+  console.log("[vault] getReadOnlyProgram()", { network });
+  const cfg = getConfig(network);
   const dummyWallet = {
     publicKey: new PublicKey("11111111111111111111111111111111"),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,16 +195,17 @@ function getReadOnlyProgram(connection: Connection): Program {
     commitment: "confirmed",
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return new Program(IDL as any, provider);
+  return new Program(cfg.idl as any, provider);
 }
 
-function getProgram(connection: Connection, wallet: AnchorWallet): Program {
-  console.log("[vault] getProgram()", { wallet: wallet.publicKey.toBase58() });
+function getProgram(connection: Connection, wallet: AnchorWallet, network: Network = "devnet"): Program {
+  console.log("[vault] getProgram()", { wallet: wallet.publicKey.toBase58(), network });
+  const cfg = getConfig(network);
   const provider = new AnchorProvider(connection, wallet, {
     commitment: "confirmed",
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return new Program(IDL as any, provider);
+  return new Program(cfg.idl as any, provider);
 }
 
 function solscanLink(tx: string, network: "devnet" | "mainnet"): string {
@@ -213,14 +247,15 @@ async function fetchCampaignAccount(
 
 // ─── View: Global State ───────────────────────────────────────────────────────
 
-export async function viewGlobalState(connection: Connection) {
-  console.log("[vault] viewGlobalState()");
-  const program = getReadOnlyProgram(connection);
-  const globalStatePda = getGlobalStatePda();
+export async function viewGlobalState(connection: Connection, network: Network = "devnet") {
+  console.log("[vault] viewGlobalState()", { network });
+  const cfg = getConfig(network);
+  const program = getReadOnlyProgram(connection, network);
+  const globalStatePda = getGlobalStatePda(network);
 
   const info = await connection.getAccountInfo(globalStatePda);
   if (!info) throw new Error("Global state account not initialized yet.");
-  if (!info.owner.equals(PROGRAM_ID)) {
+  if (!info.owner.equals(cfg.programId)) {
     throw new Error("Account is not owned by the staking vault program.");
   }
 
@@ -319,17 +354,18 @@ function parseCampaignRaw(data: Buffer) {
 
 // ─── View: Campaign ───────────────────────────────────────────────────────────
 
-export async function viewCampaign(connection: Connection, campaignId: number) {
-  console.log("[vault] viewCampaign()", { campaignId });
-  const program = getReadOnlyProgram(connection);
-  const campaignPda = getCampaignPda(campaignId);
+export async function viewCampaign(connection: Connection, campaignId: number, network: Network = "devnet") {
+  console.log("[vault] viewCampaign()", { campaignId, network });
+  const cfg = getConfig(network);
+  const program = getReadOnlyProgram(connection, network);
+  const campaignPda = getCampaignPda(campaignId, network);
 
   const info = await connection.getAccountInfo(campaignPda);
   if (!info)
     throw new Error(
       `Campaign ${campaignId} not found. The account does not exist.`,
     );
-  if (!info.owner.equals(PROGRAM_ID)) {
+  if (!info.owner.equals(cfg.programId)) {
     throw new Error("Account is not owned by the staking vault program.");
   }
 
@@ -393,17 +429,19 @@ export async function viewUserState(
   connection: Connection,
   campaignId: number,
   userPubkey: string,
+  network: Network = "devnet",
 ) {
-  console.log("[vault] viewUserState()", { campaignId, userPubkey });
-  const program = getReadOnlyProgram(connection);
+  console.log("[vault] viewUserState()", { campaignId, userPubkey, network });
+  const cfg = getConfig(network);
+  const program = getReadOnlyProgram(connection, network);
   const user = new PublicKey(userPubkey);
-  const campaignPda = getCampaignPda(campaignId);
-  const userDepositPda = getUserDepositPda(campaignPda, user);
+  const campaignPda = getCampaignPda(campaignId, network);
+  const userDepositPda = getUserDepositPda(campaignPda, user, network);
 
   const info = await connection.getAccountInfo(userDepositPda);
   if (!info)
     throw new Error("No deposit record found for this user in this campaign.");
-  if (!info.owner.equals(PROGRAM_ID)) {
+  if (!info.owner.equals(cfg.programId)) {
     throw new Error("Account is not owned by the staking vault program.");
   }
 
@@ -463,13 +501,13 @@ export async function deposit(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const depositMint = new PublicKey(params.depositMint);
   const campaignId = new BN(params.campaignId);
   const isNativeSol = depositMint.toBase58() === NATIVE_MINT_ADDRESS;
 
-  const campaignPda = getCampaignPda(campaignId);
-  const globalStatePda = getGlobalStatePda();
+  const campaignPda = getCampaignPda(campaignId, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
 
   const campaignAccount = await fetchCampaignAccount(
     program,
@@ -548,7 +586,7 @@ export async function deposit(
     );
   }
 
-  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey);
+  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey, params.network);
 
   const tx = await program.methods
     .deposit(amount)
@@ -589,13 +627,13 @@ export async function withdraw(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const depositMint = new PublicKey(params.depositMint);
   const campaignId = new BN(params.campaignId);
   const isNativeSol = depositMint.toBase58() === NATIVE_MINT_ADDRESS;
 
-  const campaignPda = getCampaignPda(campaignId);
-  const globalStatePda = getGlobalStatePda();
+  const campaignPda = getCampaignPda(campaignId, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
 
   const campaignAccount = await fetchCampaignAccount(
     program,
@@ -670,7 +708,7 @@ export async function withdraw(
     );
   }
 
-  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey);
+  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey, params.network);
 
   const tx = await program.methods
     .withdraw(amount)
@@ -729,13 +767,13 @@ export async function userClaim(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const campaignId = new BN(params.campaignId);
   const claimTokenProgram = params.useToken2022
     ? TOKEN_2022_PROGRAM_ID
     : TOKEN_PROGRAM_ID;
 
-  const campaignPda = getCampaignPda(campaignId);
+  const campaignPda = getCampaignPda(campaignId, params.network);
   const campaignAccount = await fetchCampaignAccount(
     program,
     connection,
@@ -751,7 +789,7 @@ export async function userClaim(
     );
   }
 
-  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey);
+  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey, params.network);
   const userClaimAta = getAssociatedTokenAddressSync(
     claimMint,
     wallet.publicKey,
@@ -808,9 +846,9 @@ export async function withdrawAll(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getReadOnlyProgram(connection);
-  const campaignPda = getCampaignPda(params.campaignId);
-  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey);
+  const program = getReadOnlyProgram(connection, params.network);
+  const campaignPda = getCampaignPda(params.campaignId, params.network);
+  const userDepositPda = getUserDepositPda(campaignPda, wallet.publicKey, params.network);
 
   const info = await connection.getAccountInfo(userDepositPda);
   if (!info)
@@ -851,8 +889,8 @@ export async function initializeGlobalState(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const globalStatePda = getGlobalStatePda();
+  const program = getProgram(connection, wallet, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
 
   const existing = await connection.getAccountInfo(globalStatePda);
   if (existing) throw new Error("Global state already initialized.");
@@ -888,13 +926,13 @@ export async function initializeCampaign(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const depositMint = new PublicKey(params.depositMint);
   const campaignId = new BN(params.campaignId);
   const duration = new BN(params.durationSeconds);
 
-  const campaignPda = getCampaignPda(campaignId);
-  const globalStatePda = getGlobalStatePda();
+  const campaignPda = getCampaignPda(campaignId, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
   const vaultDepositAta = getAssociatedTokenAddressSync(
     depositMint,
     campaignPda,
@@ -935,8 +973,8 @@ export async function updateFees(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const globalStatePda = getGlobalStatePda();
+  const program = getProgram(connection, wallet, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
 
   const tx = await program.methods
     .updateFees(new BN(params.depositFeeBps), new BN(params.withdrawFeeBps))
@@ -958,8 +996,8 @@ export async function setTreasuryAdmin(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const globalStatePda = getGlobalStatePda();
+  const program = getProgram(connection, wallet, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
   const newAdmin = new PublicKey(params.newTreasuryAdmin);
 
   const tx = await program.methods
@@ -986,8 +1024,8 @@ export async function setActiveStatus(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const campaignPda = getCampaignPda(params.campaignId);
+  const program = getProgram(connection, wallet, params.network);
+  const campaignPda = getCampaignPda(params.campaignId, params.network);
 
   const tx = await program.methods
     .setActiveStatus(params.status)
@@ -1013,8 +1051,8 @@ export async function setWithdrawEnabled(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const campaignPda = getCampaignPda(params.campaignId);
+  const program = getProgram(connection, wallet, params.network);
+  const campaignPda = getCampaignPda(params.campaignId, params.network);
 
   const tx = await program.methods
     .setWithdrawEnabled(params.enabled)
@@ -1040,8 +1078,8 @@ export async function setClaimStatus(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const campaignPda = getCampaignPda(params.campaignId);
+  const program = getProgram(connection, wallet, params.network);
+  const campaignPda = getCampaignPda(params.campaignId, params.network);
 
   const tx = await program.methods
     .setClaimStatus(params.status)
@@ -1068,12 +1106,12 @@ export async function loadClaimTokens(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const campaignId = new BN(params.campaignId);
   const claimMint = new PublicKey(params.claimMint);
   const amount = new BN(params.amount);
 
-  const campaignPda = getCampaignPda(campaignId);
+  const campaignPda = getCampaignPda(campaignId, params.network);
   const vaultClaimAta = getAssociatedTokenAddressSync(
     claimMint,
     campaignPda,
@@ -1138,13 +1176,13 @@ export async function swap(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const campaignId = new BN(params.campaignId);
   const minimumAmountOut = new BN(params.minimumAmountOut);
   const configPubkey = new PublicKey(params.configPubkey);
   const outputMint = new PublicKey(params.outputMint);
 
-  const campaignPda = getCampaignPda(campaignId);
+  const campaignPda = getCampaignPda(campaignId, params.network);
   const campaignAccount = await fetchCampaignAccount(
     program,
     connection,
@@ -1218,11 +1256,11 @@ export async function adminWithdraw(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const campaignId = new BN(params.campaignId);
 
-  const campaignPda = getCampaignPda(campaignId);
-  const globalStatePda = getGlobalStatePda();
+  const campaignPda = getCampaignPda(campaignId, params.network);
+  const globalStatePda = getGlobalStatePda(params.network);
 
   const campaignAccount = await fetchCampaignAccount(
     program,
@@ -1292,8 +1330,8 @@ export async function changeCampaignAdmin(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const campaignPda = getCampaignPda(params.campaignId);
+  const program = getProgram(connection, wallet, params.network);
+  const campaignPda = getCampaignPda(params.campaignId, params.network);
   const newAdmin = new PublicKey(params.newAdmin);
 
   const tx = await program.methods
@@ -1320,8 +1358,8 @@ export async function updateCampaignDuration(
     ...params,
     caller: wallet.publicKey.toBase58(),
   });
-  const program = getProgram(connection, wallet);
-  const campaignPda = getCampaignPda(params.campaignId);
+  const program = getProgram(connection, wallet, params.network);
+  const campaignPda = getCampaignPda(params.campaignId, params.network);
 
   const tx = await program.methods
     .updateCampaignDuration(new BN(params.newDurationSeconds))
@@ -1583,9 +1621,9 @@ export async function createConfigPoolAndSwap(
   });
 
   console.log("[vault] createConfigPoolAndSwap() step 1: get program and campaign PDA");
-  const program = getProgram(connection, wallet);
+  const program = getProgram(connection, wallet, params.network);
   const campaignId = new BN(params.campaignId);
-  const campaignPda = getCampaignPda(campaignId);
+  const campaignPda = getCampaignPda(campaignId, params.network);
   console.log("[vault] createConfigPoolAndSwap() campaignPda:", campaignPda.toBase58());
 
   console.log("[vault] createConfigPoolAndSwap() step 2: fetch campaign quote mint info");

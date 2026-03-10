@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useConnection, useWallet, useAnchorWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { Providers, getRpcEndpoint } from './providers';
 import {
   viewGlobalState,
   viewCampaign,
@@ -425,11 +426,11 @@ function AccordionItem({
 
       // ── View functions (read-only, no wallet needed) ──
       if (fn.id === 'view_global_state') {
-        data = await viewGlobalState(connection);
+        data = await viewGlobalState(connection, net);
       } else if (fn.id === 'view_campaign') {
-        data = await viewCampaign(connection, Number(values.campaign_id));
+        data = await viewCampaign(connection, Number(values.campaign_id), net);
       } else if (fn.id === 'view_user_state') {
-        data = await viewUserState(connection, Number(values.campaign_id), values.user_pubkey);
+        data = await viewUserState(connection, Number(values.campaign_id), values.user_pubkey, net);
       }
 
       // ── User functions (wallet required) ──
@@ -916,10 +917,9 @@ function MainnetBanner() {
     >
       <span className="text-2xl flex-shrink-0 mt-0.5">&#9888;</span>
       <div>
-        <p className="font-semibold text-red-300 text-sm">Not Yet Deployed on Mainnet</p>
+        <p className="font-semibold text-red-300 text-sm">You are on Mainnet</p>
         <p className="text-red-400/80 text-xs mt-1 leading-relaxed">
-          The CyreneAI Early Sale Vault contract is currently deployed on <strong>Devnet only</strong>.
-          Mainnet deployment is planned for a future release. Please switch to Devnet to interact with the vault.
+          Transactions on Mainnet use <strong>real funds</strong>. Please double-check all inputs before submitting.
         </p>
       </div>
     </div>
@@ -938,6 +938,15 @@ const TABS: { id: SectionId; label: string; icon: string }[] = [
 
 export default function Home() {
   const [network, setNetwork] = useState<Network>('devnet');
+
+  return (
+    <Providers key={network} endpoint={getRpcEndpoint(network)}>
+      <HomeInner network={network} setNetwork={setNetwork} />
+    </Providers>
+  );
+}
+
+function HomeInner({ network, setNetwork }: { network: Network; setNetwork: (n: Network) => void }) {
   const [activeTab, setActiveTab] = useState<SectionId>('view');
 
   return (
@@ -995,7 +1004,7 @@ export default function Home() {
             {network === 'devnet' ? 'Devnet' : 'Mainnet'}
           </span>
           <span className="text-xs text-slate-500">
-            {network === 'devnet' ? 'Connected to Solana Devnet' : 'Contract not yet deployed on Mainnet'}
+            {network === 'devnet' ? 'Connected to Solana Devnet' : 'Connected to Solana Mainnet'}
           </span>
         </div>
 
@@ -1026,14 +1035,7 @@ export default function Home() {
         </div>
 
         {/* Section content */}
-        {network === 'mainnet' ? (
-          <div className="text-center py-16 text-slate-500 text-sm space-y-2">
-            <div className="text-4xl mb-4">&#128274;</div>
-            <p className="font-semibold text-slate-400">Mainnet not available yet</p>
-            <p>Switch to Devnet to interact with the vault.</p>
-          </div>
-        ) : (
-          <div className="space-y-10">
+        <div className="space-y-10">
             {activeTab === 'view' && (
               <SectionBlock
                 id="view"
@@ -1062,11 +1064,10 @@ export default function Home() {
               />
             )}
           </div>
-        )}
 
         {/* Footer */}
         <footer className="pt-8 border-t text-center text-xs text-slate-600" style={{ borderColor: '#1e1e30' }}>
-          CyreneAI Early Sale Vault &mdash; Solana Devnet &mdash; v0.1.0
+          CyreneAI Early Sale Vault &mdash; Solana {network === 'devnet' ? 'Devnet' : 'Mainnet'} &mdash; v0.1.0
         </footer>
       </main>
     </div>
