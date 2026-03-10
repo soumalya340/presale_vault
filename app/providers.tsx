@@ -15,14 +15,19 @@ import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
-const DEVNET_RPC = 'https://api.devnet.solana.com';
-const MAINNET_RPC = 'https://api.mainnet-beta.solana.com';
+// Default RPCs (Ankr — avoids 403 from official Solana endpoints in browsers).
+// Override via env vars in your deployment platform (Vercel, Netlify, etc.):
+// NEXT_PUBLIC_RPC_DEVNET, NEXT_PUBLIC_RPC_MAINNET
+const DEFAULT_DEVNET = 'https://api.devnet.solana.com';
+const DEFAULT_MAINNET = 'https://api.mainnet.solana.com';
 
 export function getRpcEndpoint(network: 'devnet' | 'mainnet'): string {
-  return network === 'mainnet' ? MAINNET_RPC : DEVNET_RPC;
+  const devnet = process.env.NEXT_PUBLIC_RPC_DEVNET ?? DEFAULT_DEVNET;
+  const mainnet = process.env.NEXT_PUBLIC_RPC_MAINNET ?? DEFAULT_MAINNET;
+  return network === 'mainnet' ? mainnet : devnet;
 }
 
-export function Providers({ children, endpoint = DEVNET_RPC }: { children: ReactNode; endpoint?: string }) {
+export function Providers({ children, endpoint = DEFAULT_DEVNET }: { children: ReactNode; endpoint?: string }) {
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
